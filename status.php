@@ -12,7 +12,7 @@
     echo "</head>";
     echo "<body>";
       echo '<h1 align="center">SPEL Status</h1>';
-      $db_connect = mysql_connect("localhost", "root", 'kgT6hdfg') or die ("Couldn't connect: " . mysql_error());
+      $db_connect = mysql_connect("localhost", "root", 'XXXXXX') or die ("Couldn't connect: " . mysql_error());
       mysql_select_db("pose_mediawiki", $db_connect)  or die ("Couldn't switch the working place: " . mysql_error());
       echo '<h2 align="center">Summary</h2>';
       $result = mysql_query("select res.*, case when res.failed=0 then 'OK' else 'FAILED' end as summary from (select 'Linux' as resultname, (select count(*) from unittests where linux=1) as ok, (select count(*) from unittests where linux=0) as failed union all select 'Windows' as resultname, (select count(*) from unittests where windows=1) as ok, (select count(*) from unittests where windows=0) as failed union all select 'Total' as resultname, (select count(*) from unittests where linux=1 and windows=1) as ok, (select count(*) from unittests where linux=0 or windows=0) as failed) res;") or die (mysql_error());
