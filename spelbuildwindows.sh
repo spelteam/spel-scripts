@@ -1,6 +1,8 @@
 #!/bin/bash
 WINDOWSLOCK=/home/vkoshura/.windows.lock
 RESULTS=/home/vkoshura/tests.results
+USRFILE=/home/vkoshura/spelbuildbot.usr
+ARCH=/home/vkoshura/windowslogs.7z
 
 if [ -f "$WINDOWSLOCK" ]; then
   if [ -f "$RESULTS" ]; then
@@ -16,6 +18,14 @@ if [ -f "$WINDOWSLOCK" ]; then
         mysql -u root -pXXXXXXXX -e "update pose_mediawiki.unittests set windows=0 where testname = '"${BASH_REMATCH[1]}"';"
       fi
     done < "$RESULTS"
+    if [ -f "$USRFILE" ]; then 
+      if [ -f "$ARCH" ]; then
+        while IFS='' read -r LINE || [[ -n "$LINE" ]]; do
+         mutt -a "$ARCH" -s "SPEL Build Bot: Windows Report" "$LINE" < "$RESULTS"
+        done < "$USRFILE"
+      fi
+    fi
+    rm "$ARCH"
     rm "$RESULTS"
     rm "$WINDOWSLOCK"
   fi
