@@ -21,7 +21,7 @@ if [ -f "$WINDOWSLOCK" ]; then
     if [ -f "$USRFILE" ]; then 
       if [ -f "$ARCH" ]; then
         while IFS='' read -r LINE || [[ -n "$LINE" ]]; do
-         mutt -a "$ARCH" -s "SPEL Build Bot: Windows Report" "$LINE" < "$RESULTS"
+         mutt -a "$ARCH" -s "SPEL Build Bot: Windows Report" -- "$LINE" < "$RESULTS"
         done < "$USRFILE"
       fi
     fi

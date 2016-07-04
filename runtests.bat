@@ -15,6 +15,7 @@ if exist %TEMPRESULTS% del %TEMPRESULTS%
 if exist %RESULTS% del %RESULTS%
 if exist %UPLOAD% del %UPLOAD%
 if exist %LOCK% del %LOCK%
+if exist %ARCH% del %ARCH%
 speltests.exe > %LOGFILE% 2>&1
 type %LOGFILE% | findstr /C:"[ RUN      ]" > %TEMPLOGFILE%
 for /f "tokens=*" %%a in (%TEMPLOGFILE%) do call :PROCESSLINE %%a
@@ -30,7 +31,7 @@ type %TEMPRESULTS% | findstr /C:"[  FAILED  ]" >> %RESULTS%
 start /wait "" "C:\Program Files\7-Zip\7z.exe" a %ARCH% %LOGFILE% %TEMPLOGFILE% %TEMPRESULTS% %RESULTS%
 echo LOCK > %LOCK%
 echo put %ARCH% > %UPLOAD%
-echo put %RESULTS% > %UPLOAD%
+echo put %RESULTS% >> %UPLOAD%
 echo put %LOCK% >> %UPLOAD%
 echo exit >> %UPLOAD%
 start /wait "" "C:\Program Files (x86)\PuTTY\psftp.exe" -b %UPLOAD%
@@ -40,6 +41,7 @@ if exist %TEMPRESULTS% del %TEMPRESULTS%
 if exist %RESULTS% del %RESULTS%
 if exist %UPLOAD% del %UPLOAD%
 if exist %LOCK% del %LOCK%
+if exist %ARCH% del %ARCH%
 cd /
 cd %OLDDIR%
 goto :EOF
