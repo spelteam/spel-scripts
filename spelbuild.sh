@@ -7,6 +7,7 @@ USRFILE=/home/vkoshura/spelbuildbot.usr
 LOCKFILE=/home/vkoshura/spelbuild.lock
 TESTSSUMMARYFILE=/home/vkoshura/testssummary.log
 SEPARATETESTFILE=/home/vkoshura/separatetest.log
+LOGS=/home/vkoshura/linuxlogs.7z
 ERRORFLAG=0
 
 if mkdir "$LOCKFILE"; then
@@ -93,30 +94,46 @@ else
   STATUS="FAILED: Unknown reason"
 fi
 
+if [ -f "$LOGS" ]; then
+  rm "$LOGS"
+fi
+
 if [ "$ERRORFLAG" -eq 0 ]; then
   if [ -f "$TESTSFILE" ]; then
-    if [ -f "$USRFILE" ]; then 
-      while IFS='' read -r LINE || [[ -n "$LINE" ]]; do
-        if [ -f "$TESTSSUMMARYFILE" ]; then
-          mutt -a "$LOGFILE" "$TESTSFILE" -s "SPEL Build Bot: Build Report: $STATUS" -- "$LINE" < "$TESTSSUMMARYFILE" 
-        else
-          echo -e "Build complete\n" | mutt -a "$LOGFILE" "$TESTSFILE" -s "SPEL Build Bot: Build Report: $STATUS" -- "$LINE"
-        fi
-      done < "$USRFILE"
+    7z a "$LOGS" "$LOGFILE" "$TESTSFILE" 
+    if [ -f "$LOGS" ]; then
+      if [ -f "$USRFILE" ]; then
+        while IFS='' read -r LINE || [[ -n "$LINE" ]]; do
+          if [ -f "$TESTSSUMMARYFILE" ]; then
+            mutt -a "$LOGS" -s "SPEL Build Bot: Build Report: $STATUS" -- "$LINE" < "$TESTSSUMMARYFILE" 
+          else
+            echo -e "Build complete\n" | mutt -a "$LOGS" -s "SPEL Build Bot: Build Report: $STATUS" -- "$LINE"
+          fi
+        done < "$USRFILE"
+      fi
     fi
   else
-    if [ -f "$USRFILE" ]; then 
-      while IFS='' read -r LINE || [[ -n "$LINE" ]]; do
-        echo -e "Tests log is not present" | mutt -a "$LOGFILE" -s "SPEL Build Bot: Build Report: $STATUS" -- "$LINE"
-      done < "$USRFILE"
+    7z a "$LOGS" "$LOGFILE"
+    if [ -f "$LOGS" ]; then
+      if [ -f "$USRFILE" ]; then 
+        while IFS='' read -r LINE || [[ -n "$LINE" ]]; do
+          echo -e "Tests log is not present" | mutt -a "$LOGS" -s "SPEL Build Bot: Build Report: $STATUS" -- "$LINE"
+        done < "$USRFILE"
+      fi
     fi
   fi
 else
-  if [ -f "$USRFILE" ]; then 
-    while IFS='' read -r LINE || [[ -n "$LINE" ]]; do
-      echo -e "Tests log is not present" | mutt -a "$LOGFILE" -s "SPEL Build Bot: Build Report: $STATUS" -- "$LINE"
-    done < "$USRFILE"
+  7z a "$LOGS" "$LOGFILE"
+  if [ -f "$LOGS" ]; then
+    if [ -f "$USRFILE" ]; then 
+      while IFS='' read -r LINE || [[ -n "$LINE" ]]; do
+        echo -e "Tests log is not present" | mutt -a "$LOGS" -s "SPEL Build Bot: Build Report: $STATUS" -- "$LINE"
+      done < "$USRFILE"
+    fi
   fi
+fi
+if [ -f "$LOGS" ]; then
+  rm "$LOGS"
 fi
 if [ -f "$LOGFILE" ]; then
   rm "$LOGFILE"
