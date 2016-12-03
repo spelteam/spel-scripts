@@ -9,10 +9,20 @@ from spelbuild_common import *
 
 revFile = "/home/vkoshura/spelbuildbot.last"
 logFile = "/home/vkoshura/spelbuildbot.log"
+buildLogFile = "/home/vkoshura/spelbuild.log"
+testsFile="/home/vkoshura/spelbuildtests.log"
 usrFile = "/home/vkoshura/spelbuildbot.usr"
+dbPwd = "/home/vkoshura/spelbuildbot.dbpwd"
 lockFile = "/home/vkoshura/spelbuildbot.lock"
-#buildFile = "/home/vkoshura/spelbuild.sh"
 srvPath = "/srv/pose/"
+srcPath = "/home/vkoshura/pose/"
+logs = "/home/vkoshura/linuxlogs.7z"
+
+def runProcess(command):
+	process = subprocess.Popen(command, stdout=subprocess.PIPE)
+	output, err = process.communicate()
+	retcode = process.returncode
+	return (retcode, output, err)
 
 def getLastSavedRev(file):
 	if not os.path.exists(file):
@@ -30,35 +40,119 @@ def setLastSavedRev(file, rev):
 def parseLastRevision(text):
 	exp = re.compile(r"changeset:\s+(\d+):")
 	res = exp.search(text)
-	return res.groups()[0]
+	if res is not None:
+		return res.groups()[0]
+	return 0
 
 def getCurrentRevision():
-	process = subprocess.Popen(["hg", "log", "-l", "1"], stdout=subprocess.PIPE)
-	output, err = process.communicate()
+	retcode, output, err = runProcess(["hg", "log", "-l", "1"])
 	res = parseLastRevision(output);
 	return int(res)
 
 def getNewRevisions(last, curr, file):
 	range = str(last + 1) + ":" + str(curr)
-	process = subprocess.Popen(["hg", "log", "-r", range], stdout=subprocess.PIPE)
-	output, err = process.communicate()
-	f = open(file, "w")
-	f.write("New pushed revisions:\n\n")
-	f.write(output)
-	f.close()
+	retcode, output, err = runProcess(["hg", "log", "-r", range])
+	writeLog("New pushed revisions:\n\n", file, True)
+	writeLog(output, file)
 
-def sendMail(to, subject, body, files):
-	command = "mutt -s" + subject + " " + to + " < " + body
-	process = subprocess.Popen(command, shell=True)
-	process.communicate()
+def updateRepo():
+	retcode, output, err = runProcess(["hg", "pull"])
+	writeLog(output, buildLogFile)
+	if retcode != 0:
+		return 1
+	retcode, output, err = runProcess(["hg", "up"])
+	writeLog(output, buildLogFile)
+	if retcode != 0:
+		return 1
+	return 0
 
-def sendMails(to, subject, body, files):
-	f = open(to, 'r')
-	lines = f.readlines()
-	for line in lines:
-		addr = line.rstrip('\n')
-		sendMail(addr, subject, body, files)
-	f.close()
+def build():
+	os.chdir(srcPath)
+	writeLog("Start build:\n\n", buildLogFile, True)
+	retcode = updateRepo()
+	if retcode != 0:
+		return retcode
+	os.chdir("build")
+	retcode, output, err = runProcess(["make", "clean"])
+	writeLog(output, buildLogFile)
+	if retcode != 0:
+		return 2
+	retcode, output, err = runProcess(["cmake", "../src/"])
+	writeLog(output, buildLogFile)
+	if retcode != 0:
+		return 3
+	retcode, output, err = runProcess(["make", "-j2"])
+	writeLog(output, buildLogFile)
+	if retcode != 0:
+		return 4
+	return 0
+
+def getTestList(strings):
+	partOneExp = re.compile(r"(\w+[/]\d+[.]|\w+[.])")
+	partTwoExp = re.compile(r"\s+(.*)")
+	partOne = ""
+	partTwo = ""
+	tests = []
+	for string in strings.splitlines():
+		partTwo = ""
+		partOneRes = partOneExp.search(string)
+		if partOneRes is not None:
+			partOne = partOneRes.groups()[0]
+		else:
+			partTwoRes = partTwoExp.search(string)
+			if partTwoRes is not None:
+				partTwo = partTwoRes.groups()[0]
+				if partOne != "" and partTwo != "":
+					tests.append(partOne + partTwo)
+	tests.sort()
+	return tests
+
+def parseTestResults(text):
+	runExp = re.compile(r"(\[.*RUN.*\].*)")
+	okExp = re.compile(r"(\[.*OK.*\].*)")
+	failedExp = re.compile(r"(\[.*FAILED.*\].*)")
+	for line in text.splitlines():
+		runRes = runExp.search(line)
+		if runRes is not None:
+			writeLog(runRes.groups()[0], logFile)
+			continue
+		okRes = okExp.search(line)
+		if okRes is not None:
+			writeLog(okRes.groups()[0], logFile)
+			return 1
+			break
+		failedRes = failedExp.search(line)
+		if failedRes is not None:
+			writeLog(failedRes.groups()[0], logFile)
+			return 0
+			break
+	return
+
+def runTest(test):
+	insertTestIntoDb(test, dbPwd)
+	retcode, output, err = runProcess(["./speltests", "--gtest_filter=" + test])
+	writeLog(output, testsFile)
+	status = parseTestResults(output)
+	updateTestInDb(test, "linux", status, dbPwd)
+	return
+
+def run():
+	#os.chdir("tests")
+	os.chdir("/home/vkoshura/pose/build/tests")
+	retcode, output, err = runProcess(["./speltests", "--gtest_list_tests"])
+	tests = getTestList(output)
+	writeLog("\n\nTests Summary:\n\n", logFile)
+	writeLog("", testsFile)
+	for test in tests:
+		runTest(test)
+	return
+
+def buildAndRun():
+	retcode = build()
+	if retcode != 0:
+		return retcode
+	run()
+	return retcode
 
 def start():
 	cwd = os.getcwd()
@@ -72,9 +166,7 @@ def start():
 		return
 
 	getNewRevisions(lastSavedRev, currentRev, logFile)
-
-	#Do main job
-
+	buildAndRun()
 	setLastSavedRev(revFile, currentRev)
 	
 	if os.path.exists(logFile):
@@ -93,4 +185,9 @@ def main ():
 	return
 
 #main()
-start()
+#start()
+#run()
+f = open("bad", "r")
+text = f.read()
+parseTestResults(text)
+f.close()
