@@ -1,6 +1,5 @@
 #!/usr/bin/python
 
-import subprocess
 import os
 import re
 import sys
@@ -17,12 +16,6 @@ lockFile = "/home/vkoshura/spelbuildbot.lock"
 srvPath = "/srv/pose/"
 srcPath = "/home/vkoshura/pose/"
 logs = "/home/vkoshura/linuxlogs.7z"
-
-def runProcess(command):
-	process = subprocess.Popen(command, stdout=subprocess.PIPE)
-	output, err = process.communicate()
-	retcode = process.returncode
-	return (retcode, output, err)
 
 def getLastSavedRev(file):
 	if not os.path.exists(file):
@@ -136,9 +129,17 @@ def runTest(test):
 	updateTestInDb(test, "linux", status, dbPwd)
 	return
 
+def packLogs(archive, logs):
+	files = []
+	for log in logs:
+		if os.path.exists(log):
+			files.append(log)
+	if files.count() > 0:
+		runProcess(["7z", "a", logs, files])
+	return
+
 def run():
-	#os.chdir("tests")
-	os.chdir("/home/vkoshura/pose/build/tests")
+	os.chdir("tests")
 	retcode, output, err = runProcess(["./speltests", "--gtest_list_tests"])
 	tests = getTestList(output)
 	writeLog("\n\nTests Summary:\n\n", logFile)
@@ -152,7 +153,34 @@ def buildAndRun():
 	if retcode != 0:
 		return retcode
 	run()
+	packLogs(logs, [buildLogFile, testsFile])
+	status = "SPEL Build Bot: Build Report: "
+	if retcode == 0:
+		status = status + "SUCCESSFULL"
+	elif retcode == 1:
+		status = status + "FAILED: Repository update failed"
+	elif retcode == 2:
+		status = status + "FAILED: Clean failed"
+	elif retcode == 3:
+		status = status + "FAILED: CMake rebuild failed"
+	elif retcode == 4:
+		status = status + "FAILED: SPEL rebuild failed"
+	else:
+	  status = status + "FAILED: Unknown reason"
+	if os.path.exists(logs):
+		sendMails(usrFile, status, logFile, logs)
 	return retcode
+
+def clean():
+	if os.path.exists(logFile):
+		os.remove(logFile)
+	if os.path.exists(buildLogFile):
+		os.remove(buildLogFile)
+	if os.path.exists(testsFile):
+		os.remove(testsFile)
+	if os.path.exists(logs):
+		os.remove(logs)
+	return
 
 def start():
 	cwd = os.getcwd()
@@ -167,11 +195,8 @@ def start():
 
 	getNewRevisions(lastSavedRev, currentRev, logFile)
 	buildAndRun()
+	clean()
 	setLastSavedRev(revFile, currentRev)
-	
-	if os.path.exists(logFile):
-		sendMails(usrFile, "SPEL Build Bot Report", logFile, [])
-		os.remove(logFile)
 
 	os.chdir(cwd)
 
@@ -184,10 +209,4 @@ def main ():
 		deleteLockFile(lockFile)
 	return
 
-#main()
-#start()
-#run()
-f = open("bad", "r")
-text = f.read()
-parseTestResults(text)
-f.close()
+main()

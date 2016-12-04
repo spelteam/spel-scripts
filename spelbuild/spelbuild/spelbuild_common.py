@@ -1,4 +1,11 @@
+import subprocess
 import os
+
+def runProcess(command):
+	process = subprocess.Popen(command, stdout=subprocess.PIPE)
+	output, err = process.communicate()
+	retcode = process.returncode
+	return (retcode, output, err)
 
 def createLockFile(file):
 	if os.path.exists(file):
