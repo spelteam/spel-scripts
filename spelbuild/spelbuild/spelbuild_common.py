@@ -2,7 +2,7 @@ import subprocess
 import os
 
 def runProcess(command):
-	process = subprocess.Popen(command, stdout=subprocess.PIPE)
+	process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 	output, err = process.communicate()
 	retcode = process.returncode
 	return (retcode, output, err)
@@ -23,11 +23,11 @@ def writeLog(message, file, create = False):
 	if create:
 		mode = "w"
 	f = open(file, mode)
-	f.write(message)
+	f.write(message + "\n")
 	f.close()
 
 def sendMail(to, subject, body, files):
-	command = "mutt -s" + subject + " " + to + " < " + body
+	command = 'mutt -a ' + files + ' -s "' + subject + '" -- ' + to + ' < ' + body
 	process = subprocess.Popen(command, shell=True)
 	process.communicate()
 
@@ -43,16 +43,16 @@ def getDbPwd(file):
 	f = open(file, "r")
 	pwd = f.read()
 	f.close()
-	return pwd
+	return pwd.strip("\n")
 
 def insertTestIntoDb(test, dbPwd):
 	pwd = getDbPwd(dbPwd)
-	sql = "insert into pose_mediawiki.unittests (testname) select * from (select '" + test + "') as t where not exists (select 1 from pose_mediawiki.unittests where testname = '" + test + "';"
+	sql = "insert into pose_mediawiki.unittests (testname) select * from (select '" + test + "') as t where not exists (select 1 from pose_mediawiki.unittests where testname = '" + test + "');"
 	runProcess(["mysql", "-u", "root", "-p" + pwd, "-e", sql]);
 	return
 
 def updateTestInDb(test, os, status, dbPwd):
 	pwd = getDbPwd(dbPwd)
-	sql = "update pose_mediawiki.unittests set " + os + "=" + str(status) + "where testname = '" + test + "';"
+	sql = "update pose_mediawiki.unittests set " + os + "=" + str(status) + " where testname = '" + test + "';"
 	runProcess(["mysql", "-u", "root", "-p" + pwd, "-e", sql]);
 	return

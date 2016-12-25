@@ -45,7 +45,7 @@ def getCurrentRevision():
 def getNewRevisions(last, curr, file):
 	range = str(last + 1) + ":" + str(curr)
 	retcode, output, err = runProcess(["hg", "log", "-r", range])
-	writeLog("New pushed revisions:\n\n", file, True)
+	writeLog("New pushed revisions:\n", file, True)
 	writeLog(output, file)
 
 def updateRepo():
@@ -61,7 +61,7 @@ def updateRepo():
 
 def build():
 	os.chdir(srcPath)
-	writeLog("Start build:\n\n", buildLogFile, True)
+	writeLog("Start build:\n", buildLogFile, True)
 	retcode = updateRepo()
 	if retcode != 0:
 		return retcode
@@ -134,18 +134,19 @@ def packLogs(archive, logs):
 	for log in logs:
 		if os.path.exists(log):
 			files.append(log)
-	if files.count() > 0:
-		runProcess(["7z", "a", logs, files])
+	if len(files) > 0:
+		runProcess(["7z", "a", archive] + files)
 	return
 
 def run():
 	os.chdir("tests")
 	retcode, output, err = runProcess(["./speltests", "--gtest_list_tests"])
 	tests = getTestList(output)
-	writeLog("\n\nTests Summary:\n\n", logFile)
+	writeLog("\nTests Summary:\n", logFile)
 	writeLog("", testsFile)
 	for test in tests:
-		runTest(test)
+		if test.find("DISABLED_") == -1:
+			runTest(test)
 	return
 
 def buildAndRun():
@@ -188,7 +189,6 @@ def start():
 
 	lastSavedRev = getLastSavedRev(revFile)
 	currentRev = getCurrentRevision()
-
 	if currentRev <= lastSavedRev:
 		os.chdir(cwd)
 		return
