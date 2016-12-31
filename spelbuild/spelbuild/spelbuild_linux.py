@@ -27,7 +27,7 @@ def getLastSavedRev(file):
 
 def setLastSavedRev(file, rev):
 	f = open(file, 'w')
-	f.write(rev)
+	f.write(str(rev))
 	f.close()
 
 def parseLastRevision(text):
