@@ -151,9 +151,8 @@ def run():
 
 def buildAndRun():
 	retcode = build()
-	if retcode != 0:
-		return retcode
-	run()
+	if retcode == 0:
+		run()
 	packLogs(logs, [buildLogFile, testsFile])
 	status = "SPEL Build Bot: Build Report: "
 	if retcode == 0:
