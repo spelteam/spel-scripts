@@ -86,7 +86,7 @@ def runTest(test):
 	writeLog(output, testsFile)
 	status = parseTestResults(output, logFile)
 	updateTestInDb(test, "linux", status, dbPwd)
-	return
+	return status
 
 def packLogs(archive, logs):
 	files = []
@@ -103,9 +103,23 @@ def run():
 	tests = getTestList(output)
 	writeLog("\nTests Summary:\n", logFile)
 	writeLog("", testsFile)
+	failedList = []
+	failed = 0;
+	success = 0;
 	for test in tests:
 		if test.find("DISABLED_") == -1:
-			runTest(test)
+			if runTest(test) == 1:
+				success = success + 1
+			else:
+				failed = failed + 1
+				failedList.append(test)
+	writeLog("\nFailed Tests:\n", logFile)
+	failedList.sort()
+	for test in failedList:
+		writeLog(test, logFile)
+	writeLog("\nOK: " + str(success), logFile)
+	writeLog("Failed: " + str(failed), logFile)
+	writeLog("Total: " + str(success + failed), logFile)
 	return
 
 def buildAndRun():
