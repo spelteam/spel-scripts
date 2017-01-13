@@ -80,52 +80,11 @@ def build():
 		return 4
 	return 0
 
-def getTestList(strings):
-	partOneExp = re.compile(r"(\w+[/]\d+[.]|\w+[.])")
-	partTwoExp = re.compile(r"\s+(.*)")
-	partOne = ""
-	partTwo = ""
-	tests = []
-	for string in strings.splitlines():
-		partTwo = ""
-		partOneRes = partOneExp.search(string)
-		if partOneRes is not None:
-			partOne = partOneRes.groups()[0]
-		else:
-			partTwoRes = partTwoExp.search(string)
-			if partTwoRes is not None:
-				partTwo = partTwoRes.groups()[0]
-				if partOne != "" and partTwo != "":
-					tests.append(partOne + partTwo)
-	tests.sort()
-	return tests
-
-def parseTestResults(text):
-	runExp = re.compile(r"(\[.*RUN.*\].*)")
-	okExp = re.compile(r"(\[.*OK.*\].*)")
-	failedExp = re.compile(r"(\[.*FAILED.*\].*)")
-	for line in text.splitlines():
-		runRes = runExp.search(line)
-		if runRes is not None:
-			writeLog(runRes.groups()[0], logFile)
-			continue
-		okRes = okExp.search(line)
-		if okRes is not None:
-			writeLog(okRes.groups()[0], logFile)
-			return 1
-			break
-		failedRes = failedExp.search(line)
-		if failedRes is not None:
-			writeLog(failedRes.groups()[0], logFile)
-			return 0
-			break
-	return
-
 def runTest(test):
 	insertTestIntoDb(test, dbPwd)
 	retcode, output, err = runProcess(["./speltests", "--gtest_filter=" + test])
 	writeLog(output, testsFile)
-	status = parseTestResults(output)
+	status = parseTestResults(output, logFile)
 	updateTestInDb(test, "linux", status, dbPwd)
 	return
 
