@@ -109,9 +109,9 @@ def run():
 	for test in tests:
 		if test.find("DISABLED_") == -1:
 			if runTest(test) == 1:
-				success = success + 1
+				success += 1
 			else:
-				failed = failed + 1
+				failed += 1
 				failedList.append(test)
 	writeLog("\nFailed Tests:\n", logFile)
 	failedList.sort()
