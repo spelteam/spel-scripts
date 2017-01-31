@@ -16,6 +16,10 @@ lockFile = "/home/vkoshura/spelbuildbot.lock"
 srvPath = "/srv/pose/"
 srcPath = "/home/vkoshura/pose/"
 logs = "/home/vkoshura/linuxlogs.7z"
+windowsLock = "/home/vkoshura/windows.lock"
+windowsArchFile = "/home/vkoshura/windowslogs.7z"
+windowsResultsFile = "/home/vkoshura/tests.results"
+windowsSummaryFile = "/home/vkoshura/windows.summary"
 
 def getLastSavedRev(file):
 	if not os.path.exists(file):
@@ -80,14 +84,6 @@ def build():
 		return 4
 	return 0
 
-def runTest(test):
-	insertTestIntoDb(test, dbPwd)
-	retcode, output, err = runProcess(["./speltests", "--gtest_filter=" + test])
-	writeLog(output, testsFile)
-	status = parseTestResults(output, logFile)
-	updateTestInDb(test, "linux", status, dbPwd)
-	return status
-
 def packLogs(archive, logs):
 	files = []
 	for log in logs:
@@ -99,28 +95,7 @@ def packLogs(archive, logs):
 
 def run():
 	os.chdir("tests")
-	retcode, output, err = runProcess(["./speltests", "--gtest_list_tests"])
-	tests = getTestList(output)
-	writeLog("\nTests Summary:\n", logFile)
-	writeLog("", testsFile)
-	failedList = []
-	failed = 0;
-	success = 0;
-	for test in tests:
-		if test.find("DISABLED_") == -1:
-			if runTest(test) == 1:
-				success += 1
-			else:
-				failed += 1
-				failedList.append(test)
-	writeLog("\nFailed Tests:\n", logFile)
-	failedList.sort()
-	for test in failedList:
-		writeLog(test, logFile)
-	writeLog("\nOK: " + str(success), logFile)
-	writeLog("Failed: " + str(failed), logFile)
-	writeLog("Total: " + str(success + failed), logFile)
-	return
+	runTests("./speltests", logFile, testsFile, "linux", dbPwd, None)
 
 def buildAndRun():
 	retcode = build()
@@ -172,11 +147,56 @@ def start():
 
 	os.chdir(cwd)
 
+def checkWindowsResults():
+	if os.path.exists(windowsLock) and os.path.exists(windowsArchFile):
+		f = open(windowsResultsFile, "r")
+		lines = f.readlines()
+		f.close()
+
+		writeLog("", windowsSummaryFile, True)
+		failedList = []
+		failed = 0;
+		success = 0;
+
+		for line in lines:
+			line = line.rstrip('\r\n')
+			res = line.split(" ")
+			test = res[1]
+			status = int(res[0])
+			insertTestIntoDb(test, dbPwd)
+			updateTestInDb(test, "windows", status, dbPwd)
+			if status == 1:
+				success += 1
+			else:
+				failed += 1
+				failedList.append(test)
+
+		writeLog("\nFailed Tests:\n", windowsSummaryFile)
+		failedList.sort()
+		for test in failedList:
+			writeLog(test, windowsSummaryFile)
+		writeLog("\nOK: " + str(success), windowsSummaryFile)
+		writeLog("Failed: " + str(failed), windowsSummaryFile)
+		writeLog("Total: " + str(success + failed), windowsSummaryFile)
+
+		sendMails(usrFile, "SPEL Build Bot: Windows Build Report", windowsSummaryFile, windowsArchFile)
+
+		if os.path.exists(windowsSummaryFile):
+			os.remove(windowsSummaryFile)
+		if os.path.exists(windowsResultsFile):
+			os.remove(windowsResultsFile)
+		if os.path.exists(windowsArchFile):
+			os.remove(windowsArchFile)
+		if os.path.exists(windowsLock):
+			os.remove(windowsLock)
+	return
+
 def main ():
 	res = createLockFile(lockFile)
 	if not res:
 		sys.exit(1)
 	else:
+		checkWindowsResults()
 		start()
 		deleteLockFile(lockFile)
 	return

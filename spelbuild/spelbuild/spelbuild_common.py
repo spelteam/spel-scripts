@@ -64,6 +64,7 @@ def getTestList(strings):
 	partOne = ""
 	partTwo = ""
 	tests = []
+	strings = strings.decode('utf-8')
 	for string in strings.splitlines():
 		partTwo = ""
 		partOneRes = partOneExp.search(string)
@@ -97,4 +98,42 @@ def parseTestResults(text, file):
 			writeLog(failedRes.groups()[0], file)
 			return 0
 			break
+	return 0
+
+def runTest(test, app, testsFile, logFile, os, dbPwd):
+	if os == "linux":
+		insertTestIntoDb(test, dbPwd)
+	retcode, output, err = runProcess([app, "--gtest_filter=" + test])
+	output = output.decode('utf-8')
+	writeLog(output, testsFile)
+	status = parseTestResults(output, logFile)
+	if os == "linux":
+		updateTestInDb(test, os, status, dbPwd)
+	return status
+
+def runTests(app, logFile, testsFile, os, dbPwd, resultsFile):
+	retcode, output, err = runProcess([app, "--gtest_list_tests"])
+	tests = getTestList(output)
+	writeLog("\nTests Summary:\n", logFile)
+	writeLog("", testsFile)
+	failedList = []
+	failed = 0;
+	success = 0;
+	for test in tests:
+		if test.find("DISABLED_") == -1:
+			status = runTest(test, app, testsFile, logFile, os, dbPwd)
+			if status == 1:
+				success += 1
+			else:
+				failed += 1
+				failedList.append(test)
+			if os == "windows":
+				writeLog(str(status) + " " + test, resultsFile)
+	writeLog("\nFailed Tests:\n", logFile)
+	failedList.sort()
+	for test in failedList:
+		writeLog(test, logFile)
+	writeLog("\nOK: " + str(success), logFile)
+	writeLog("Failed: " + str(failed), logFile)
+	writeLog("Total: " + str(success + failed), logFile)
 	return

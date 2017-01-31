@@ -5,7 +5,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>7287123a-d9d3-49c5-8dec-85d6a3fd9244</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>spelbuild_linux.py</StartupFile>
+    <StartupFile>spelbuild_windows.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -26,6 +26,9 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="spelbuild_linux.py" />
+    <Compile Include="spelbuild_windows.py">
+      <SubType>Code</SubType>
+    </Compile>
   </ItemGroup>
   <PropertyGroup>
     <VisualStudioVersion Condition="'$(VisualStudioVersion)' == ''">10.0</VisualStudioVersion>
